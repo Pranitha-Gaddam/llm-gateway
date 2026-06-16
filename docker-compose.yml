@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  # We name our service "orion-cache"
+  orion-cache:
+    # We use "redis-stack" instead of standard redis.
+    # Why? Standard Redis only handles basic key-value strings. 
+    # Redis Stack includes the "RediSearch" engine, which allows us to do Vector Math.
+    image: redis/redis-stack:latest
+    
+    container_name: orion_redis_gateway
+    
+    # Port mapping syntax is HOST:CONTAINER
+    # Redis inside the container listens on port 6379 and 8001.
+    # We map them to our Mac's local ports so our Python code can reach them.
+    ports:
+      - "6379:6379"  # Core Redis database port
+      - "8001:8001"  # Redis Insight Dashboard (A graphical UI to see our database tokens!)
+      
+    # Tells Docker to auto-restart the database if it crashes unexpectedly
+    restart: unless-stopped
