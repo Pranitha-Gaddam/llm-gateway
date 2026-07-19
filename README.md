@@ -4,7 +4,7 @@ A high-performance AI reverse proxy with a optimized two-tier caching architectu
 
 ---
 
-## 🧠 Caching Architecture
+## Caching Architecture
 
 1. **Tier 1: Global Exact Match (Stateless)**
    * **Scope:** First-turn user prompts only.
@@ -16,7 +16,7 @@ A high-performance AI reverse proxy with a optimized two-tier caching architectu
 
 ---
 
-## ⚡ Commands to Run
+## Commands to Run
 
 ### 1. Start Infrastructure
 Spin up the background Redis Stack database container:
