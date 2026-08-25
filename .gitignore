@@ -10,3 +10,8 @@ venv/
 # Python caching
 **/__pycache__/
 *.py[cod]
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

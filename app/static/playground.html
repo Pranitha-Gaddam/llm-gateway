@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Gateway — Playground</title>
+<style>
+  :root {
+    --cream:#faf6ef; --panel:#fffdf9; --raise:#f4eee3; --line:#e6ddce; --edge:#d8ccb8;
+    --ink:#1a1614; --soft:#5c544e; --faint:#8a8178;
+    --maroon:#7a1f2b; --maroon-lift:#96313f; --teal:#1f6f6b;
+    --green:#2e6b41; --red:#c0392b;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:var(--cream); color:var(--ink); margin:0; font-size:14px;
+         -webkit-font-smoothing:antialiased; }
+  a { color:var(--maroon); }
+  code { background:var(--raise); border:1px solid var(--line); border-radius:4px;
+         padding:1px 5px; font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { max-width:1240px; margin:0 auto; padding:0 18px 44px; }
+
+  /* ---- header + metrics ---- */
+  header { position:sticky; top:0; z-index:20; background:var(--cream);
+           padding:20px 0 13px; border-bottom:1px solid var(--line); }
+  .titlebar { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  h1 { font-size:19px; margin:0; font-weight:700; letter-spacing:-.2px; }
+  .tagline { color:var(--soft); font-size:13px; }
+  .helplink { margin-left:auto; background:none; border:none; color:var(--maroon);
+              font-size:12.5px; cursor:pointer; font-family:inherit; text-decoration:underline;
+              text-underline-offset:3px; padding:0; }
+  .metrics { display:flex; gap:9px; flex-wrap:wrap; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:9px;
+          padding:9px 14px; min-width:120px; flex:1; }
+  .stat .k { font-size:9.5px; text-transform:uppercase; letter-spacing:.7px;
+             color:var(--faint); font-weight:700; }
+  .stat .v { font-size:18px; font-weight:700; margin-top:2px; color:var(--maroon);
+             font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .stat .v.none { color:var(--faint); font-weight:400; font-size:15px; }
+  .stat.split { display:flex; gap:12px; align-items:center; }
+  .mini { font-size:10.5px; color:var(--soft); line-height:1.5; }
+  .mini b { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--ink); }
+  .ghost { background:var(--panel); border:1px solid var(--edge); color:var(--soft);
+           border-radius:7px; padding:7px 12px; cursor:pointer; font-size:12px;
+           font-family:inherit; white-space:nowrap; }
+  .ghost:hover { color:var(--maroon); border-color:var(--maroon); }
+
+  /* ---- layout ---- */
+  .cols { display:grid; grid-template-columns:1fr; gap:22px; margin-top:22px; }
+  @media (min-width:940px) { .cols { grid-template-columns:336px 1fr; align-items:start; } }
+  h2 { font-size:11.5px; text-transform:uppercase; letter-spacing:.8px; margin:0 0 7px;
+       font-weight:700; color:var(--maroon); }
+  .blurb { font-size:12.5px; color:var(--soft); line-height:1.65; margin:0 0 14px; }
+
+  /* ---- scenarios ---- */
+  .sc { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+        padding:14px 15px; margin-bottom:10px; }
+  .sc h3 { font-size:13.5px; margin:0 0 5px; font-weight:650; }
+  .sc p { font-size:12px; color:var(--soft); line-height:1.6; margin:0 0 11px; }
+  button.run { background:var(--maroon); color:#fff; border:1px solid var(--maroon);
+               border-radius:7px; padding:6px 16px; font-size:12.5px; cursor:pointer;
+               font-family:inherit; font-weight:600; }
+  button.run:hover:not(:disabled) { background:var(--maroon-lift); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .steps { margin-top:11px; display:none; }
+  .steps.on { display:block; }
+  .step { font-size:11.5px; color:var(--soft); padding:3px 0; display:flex; gap:8px;
+          line-height:1.55; }
+  .step .ix { color:var(--faint); font-family:ui-monospace,monospace; flex-shrink:0;
+              font-weight:700; }
+  .step.pass .ix { color:var(--green); }
+  .step.fail { color:var(--red); } .step.fail .ix { color:var(--red); }
+  .step.active { color:var(--maroon); }
+
+  /* ---- chat ---- */
+  .chatwrap { background:var(--panel); border:1px solid var(--line); border-radius:11px;
+              display:flex; flex-direction:column; overflow:hidden; }
+  .tabbar { display:flex; align-items:center; gap:4px; padding:8px 9px 0;
+            border-bottom:1px solid var(--line); background:var(--raise); }
+  .tab { padding:8px 17px; font-size:12.5px; color:var(--soft); cursor:pointer;
+         border-radius:8px 8px 0 0; border:1px solid transparent; border-bottom:none;
+         position:relative; top:1px; user-select:none; }
+  .tab:hover { color:var(--ink); }
+  .tab.on { background:var(--panel); border-color:var(--line); color:var(--maroon);
+            font-weight:700; }
+  .tab .dot { display:inline-block; width:6px; height:6px; border-radius:50%;
+              background:var(--maroon); margin-left:7px; vertical-align:middle; opacity:.55; }
+  .tabbar .spacer { flex:1; }
+  .tabbar .ghost { margin:0 4px 7px 0; padding:5px 11px; font-size:11.5px; }
+
+  .thread { padding:19px; height:452px; overflow-y:auto; display:flex;
+            flex-direction:column; gap:15px; }
+  .thread .placeholder { margin:auto; text-align:center; color:var(--faint);
+                         font-size:13px; line-height:1.75; max-width:340px; }
+  .thread .placeholder b { color:var(--soft); font-weight:600;
+                           font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                           font-size:12.5px; }
+  .msg { display:flex; flex-direction:column; max-width:84%; }
+  .msg.user { align-self:flex-end; align-items:flex-end; }
+  .msg.ai { align-self:flex-start; align-items:flex-start; }
+  .bubble { padding:10px 14px; border-radius:13px; font-size:13px; line-height:1.65;
+            white-space:pre-wrap; word-break:break-word; }
+  .msg.user .bubble { background:var(--maroon); color:#fff; border-bottom-right-radius:3px; }
+  .msg.ai .bubble { background:var(--raise); border:1px solid var(--line); color:var(--ink);
+                    border-bottom-left-radius:3px; }
+
+  .chips { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; align-items:center; }
+  .chip { font-size:10.5px; padding:2px 8px; border-radius:20px; background:var(--panel);
+          border:1px solid var(--edge); color:var(--soft);
+          font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .chip.tier { color:#fff; border:none; font-weight:700; }
+  .chip.verdict { font-weight:700; background:none; }
+  .chip.verdict.pass { color:var(--green); border-color:var(--green); }
+  .chip.verdict.fail { color:var(--red); border-color:var(--red); }
+  .note { margin-top:8px; padding-left:12px; border-left:2px solid var(--edge);
+          font-size:11.5px; color:var(--soft); line-height:1.65; }
+
+  .typing { display:flex; gap:4px; padding:12px 15px; }
+  .typing i { width:6px; height:6px; border-radius:50%; background:var(--faint);
+              animation:blink 1.3s infinite both; }
+  .typing i:nth-child(2) { animation-delay:.18s; }
+  .typing i:nth-child(3) { animation-delay:.36s; }
+  @keyframes blink { 0%,80%,100%{opacity:.22} 40%{opacity:1} }
+
+  .composer { display:flex; gap:9px; padding:13px; border-top:1px solid var(--line);
+              background:var(--raise); }
+  input[type=text] { flex:1; background:var(--panel); border:1px solid var(--edge);
+                     border-radius:8px; padding:10px 13px; color:var(--ink);
+                     font-size:13px; font-family:inherit; }
+  input[type=text]:focus { outline:none; border-color:var(--maroon); }
+  button.send { background:var(--maroon); border:1px solid var(--maroon); color:#fff;
+                border-radius:8px; padding:0 19px; font-size:13px; font-weight:650;
+                cursor:pointer; font-family:inherit; }
+  button.send:hover:not(:disabled) { background:var(--maroon-lift); }
+
+  .banner { border:1px solid #d9a7a0; background:#fbeeec; color:#8c2f22; border-radius:9px;
+            padding:11px 13px; font-size:12.5px; margin-top:15px; display:none; line-height:1.6; }
+  .banner.on { display:block; }
+
+  /* ---- intro dialog ---- */
+  .veil { position:fixed; inset:0; background:rgba(26,22,20,.55); z-index:100;
+          display:none; align-items:center; justify-content:center; padding:20px; }
+  .veil.on { display:flex; }
+  /* A flex item defaults to min-width:auto, which refuses to shrink below its
+     own content and is the usual cause of things running off a narrow screen.
+     Every flex child that holds text opts out of that below. */
+  /* Only the dialog body scrolls, so the action stays put. */
+  .veil { overflow:hidden; }
+  .card { display:flex; flex-direction:column; background:var(--panel);
+          border-radius:14px; width:100%; max-width:520px; min-width:0;
+          max-height:calc(100dvh - 24px); overflow:hidden;
+          box-shadow:0 18px 50px rgba(26,22,20,.28); }
+  .card-body { overflow-y:auto; overscroll-behavior:contain; min-height:0;
+               padding:28px 30px 6px;
+               scrollbar-width:thin; scrollbar-color:var(--faint) transparent; }
+  .card-body::-webkit-scrollbar { width:6px; }
+  .card-body::-webkit-scrollbar-track { background:transparent; }
+  .card-body::-webkit-scrollbar-thumb { background:var(--faint); border-radius:3px; }
+  .card-actions { flex:0 0 auto; padding:14px 30px 20px; background:var(--panel);
+                  border-top:1px solid var(--line); }
+  .card h2 { font-size:18px; text-transform:none; letter-spacing:-.2px; color:var(--ink);
+             margin:0 0 8px; }
+  .card .lede { font-size:13.5px; color:var(--soft); line-height:1.65; margin:0 0 18px; }
+  .tierrow { display:flex; gap:11px; margin-bottom:13px; align-items:flex-start; }
+  /* Shared width so all three descriptions line up. */
+  .tierrow .pin { flex-shrink:0; margin-top:2px; font-size:10px; font-weight:700; color:#fff;
+                  padding:2px 8px; border-radius:20px; min-width:54px;
+                  text-align:center; box-sizing:border-box;
+                  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .tierrow div { font-size:12.5px; line-height:1.6; color:var(--soft); }
+  .tierrow b { color:var(--ink); }
+  .heads-up { background:var(--raise); border-left:3px solid var(--maroon); border-radius:0 8px 8px 0;
+              padding:12px 15px; font-size:12.5px; line-height:1.6; color:var(--soft);
+              margin:18px 0 20px; }
+  .heads-up > b { color:var(--ink); display:block; margin-bottom:8px; font-size:12px;
+                  text-transform:uppercase; letter-spacing:.6px; }
+  .heads-up li b { color:var(--ink); font-weight:650; }
+  .heads-up ul { margin:0; padding-left:17px; }
+  .heads-up li { margin-bottom:6px; }
+  .heads-up li:last-child { margin-bottom:0; }
+  button.begin { background:var(--maroon); color:#fff; border:none; border-radius:8px;
+                 padding:11px; font-size:13.5px; font-weight:650; cursor:pointer;
+                 font-family:inherit; width:100%; }
+  button.begin:hover { background:var(--maroon-lift); }
+
+  /* ---- responsive ------------------------------------------------------- */
+
+  /* Flex items default to min-width:auto and refuse to shrink below their
+     content, which is what pushes things off a narrow screen. */
+  .titlebar, .tabbar, .composer, .tierrow, .msg, .chips, .sc, .step,
+  .card-body, .chatwrap, .cols > div, .metrics { min-width:0; }
+  .tierrow > div, .composer input, .bubble, .sc p, .blurb { min-width:0; }
+  .bubble, .note, .sc p, .blurb, .step { overflow-wrap:anywhere; }
+
+  h1 { font-size:clamp(16px, 4.4vw, 19px); }
+  .tagline { font-size:clamp(11px, 3vw, 13px); }
+
+  .wrap { padding-left:max(14px, env(safe-area-inset-left));
+          padding-right:max(14px, env(safe-area-inset-right)); }
+  @media (min-width:940px) { .wrap { padding-left:18px; padding-right:18px; } }
+
+  .sc-toggle { display:none; }
+
+  @media (max-width:939px) {
+    /* The page is a column the height of the viewport, and the chat takes
+       whatever is left over. Nothing scrolls vertically until the scenarios
+       are expanded and push the column past the viewport. */
+    /* A viewport-height column: the chat takes whatever is left, and because
+       every link can shrink it never pushes the page past the viewport.
+       width:100% is load-bearing — `margin:0 auto` disables cross-axis
+       stretching once body is a flex container. */
+    body { min-height:100dvh; display:flex; flex-direction:column; }
+    .wrap { flex:1; width:100%; display:flex; flex-direction:column;
+            min-height:0; padding-bottom:14px; }
+    .cols { flex:1; min-height:0; display:flex; flex-direction:column;
+            gap:14px; margin-top:16px; }
+    #chatCol { flex:1; min-height:0; display:flex; flex-direction:column; }
+    .chatwrap { flex:1; min-height:0; }
+
+    /* Capped so it never swallows a tall screen. */
+    .thread { flex:1 1 auto; height:auto;
+              min-height:200px; max-height:min(62dvh, 560px); }
+
+    /* Not `contain`: overscroll must chain so you can scroll back up. */
+    .thread { overscroll-behavior:auto; }
+
+    .sc-toggle { display:flex; align-items:center; justify-content:space-between;
+                 gap:10px; width:100%; background:var(--panel);
+                 border:1px solid var(--edge); border-radius:10px;
+                 padding:11px 14px; font-family:inherit; font-size:13px;
+                 font-weight:650; color:var(--ink); cursor:pointer;
+                 margin-bottom:10px; min-height:44px; }
+    .sc-toggle .caret { color:var(--maroon); font-size:11px; font-weight:700;
+                        text-transform:uppercase; letter-spacing:.6px; flex:0 0 auto; }
+    #scenarioBody.collapsed { display:none; }
+    .chatwrap { scroll-margin-top:92px; }
+  }
+
+  @media (max-width:700px) {
+    header { padding:12px 0 9px; }
+    .wide { display:none; }               /* "Clear chat" becomes "Clear" */
+
+    .titlebar { flex-wrap:wrap; gap:2px 10px; margin-bottom:9px; }
+    .titlebar .tagline { order:3; flex:1 0 100%; }
+    .helplink { margin-left:auto; flex:0 0 auto; }
+
+    /* Inline pairs that wrap, so the row always fits. */
+    .metrics { flex-wrap:wrap; gap:3px 14px; align-items:baseline; }
+    .stat { background:none; border:none; padding:0; min-width:0; flex:0 0 auto;
+            display:flex; align-items:baseline; gap:5px; }
+    .stat .k { font-size:9.5px; letter-spacing:.5px; }
+    .stat .v { font-size:13px; }
+    .stat .v.none { font-size:13px; }
+    .mini-reset { padding:2px 8px; font-size:10.5px; margin-left:auto; }
+
+    .tabbar { padding:6px 6px 0; }
+    .tab { flex:0 0 auto; padding:8px 11px; font-size:12px; min-height:38px;
+           display:flex; align-items:center; }
+    .tabbar .spacer { min-width:4px; }
+    .tabbar .ghost { flex:0 0 auto; padding:5px 9px; font-size:11px; }
+
+    .thread { padding:14px; gap:12px; }
+    .msg { max-width:92%; }
+    .bubble { font-size:13px; }
+    .chip { font-size:11px; }
+    #chatsBlurb { display:none; }
+    .cols h2 { margin-bottom:8px; }
+
+    /* 16px stops iOS zooming on focus; 44px is a comfortable touch target. */
+    .composer { padding:10px; gap:8px;
+                padding-bottom:max(10px, env(safe-area-inset-bottom)); }
+    .composer input { font-size:16px; min-height:44px; }
+    button.send { flex:0 0 auto; padding:0 14px; min-height:44px; }
+
+    .veil { padding:10px; }
+    .card { max-height:calc(100dvh - 20px); }
+    .card h2 { font-size:17px; }
+    .card-body { padding:20px 17px 6px; }
+    .card-actions { padding:12px 17px 16px; }
+    .heads-up { padding:11px 13px; }
+  }
+
+  /* Very narrow phones. The tab strip is tightest, so it wraps if it must. */
+  @media (max-width:360px) {
+    .tabbar { gap:2px; padding:5px 5px 0; flex-wrap:wrap; }
+    .tabbar .spacer { display:none; }
+    .tab { padding:7px 7px; font-size:11px; min-height:34px; }
+    .tabbar .ghost { padding:4px 7px; font-size:10.5px; margin-left:auto; }
+    .metrics { gap:3px 10px; }
+    .stat .k { font-size:9px; }
+    .stat .v { font-size:12px; }
+    .sc { padding:12px; }
+    .card-body { padding:18px 14px 6px; }
+    .card-actions { padding:11px 14px 14px; }
+    .thread { padding:12px; }
+    .msg { max-width:96%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="veil" id="veil">
+  <div class="card">
+    <div class="card-body">
+    <h2>An LLM cache you can watch working</h2>
+    <p class="lede">
+      This is a proxy sitting in front of the OpenAI API. When a question has been asked
+      before, it retrieves the answer from a multi-tiered Redis cache instead of paying
+      for a new API call.
+      <b>Every answer is tagged with the Redis cache tier that served it:</b>
+    </p>
+
+    <div class="tierrow">
+      <span class="pin" style="background:var(--maroon)">Tier 1</span>
+      <div><b>Exact match.</b> The text matches a previous question perfectly. The answer
+      is retrieved instantly from the Redis string cache, bypassing the LLM entirely.
+      <i>(Note: follow-up questions skip this tier because they rely on conversational
+      context.)</i></div>
+    </div>
+    <div class="tierrow">
+      <span class="pin" style="background:var(--teal)">Tier 2</span>
+      <div><b>Semantic match.</b> Different words, but identical meaning. Served from the
+      Redis vector cache. The response shows a <b>distance</b> metric indicating how close
+      the match is (0 is identical).</div>
+    </div>
+    <div class="tierrow">
+      <span class="pin" style="background:var(--faint)">Miss</span>
+      <div><b>Nothing matched</b>, so the question goes upstream to OpenAI. Takes a few
+      seconds.</div>
+    </div>
+
+    <div class="heads-up">
+      <b>How it works</b>
+      <ul>
+        <li><b>Prompt normalization.</b> Tier 1 lowercases the text and collapses
+        whitespace before hashing it, ensuring messy formatting still hits the exact same
+        Redis key.</li>
+        <li><b>Vector search.</b> Tier 2 embeds the question and runs a nearest-neighbor
+        search against the Redis vector index, accepting anything within a 0.15 cosine
+        distance.</li>
+        <li><b>Query rewriting.</b> The proxy uses chat history to turn vague follow-ups
+        into complete standalone questions. For example, <i>“How does it work?”</i> is
+        rewritten into <i>“How does Redis work?”</i> before it is embedded, so answers
+        aren't mixed up between different topics.</li>
+      </ul>
+    </div>
+
+    </div>
+    <div class="card-actions">
+      <button class="begin" id="begin">Start exploring</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="titlebar">
+      <h1>LLM Gateway</h1>
+      <span class="tagline">a caching proxy for the OpenAI API</span>
+      <button class="helplink" id="helplink">What is this?</button>
+    </div>
+    <div class="metrics" id="metrics"></div>
+  </header>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="cols">
+    <div>
+      <h2>Guided scenarios</h2>
+      <button class="sc-toggle" id="scToggle"></button>
+      <div id="scenarioBody">
+      <p class="blurb">
+        Run these to see how the cache behaves in different situations. Each one sends
+        real requests across the chats and checks what came back, and the questions are changed for
+        every run.
+      </p>
+      <div id="scenarios"></div>
+      </div>
+    </div>
+
+    <div id="chatCol">
+      <h2>Chats</h2>
+      <p class="blurb" id="chatsBlurb">
+        Three independent chat sessions sharing one cache. Ask anything, this is a live gateway.
+      </p>
+      <div class="chatwrap">
+        <div class="tabbar" id="tabs"></div>
+        <div class="thread" id="thread"></div>
+        <div class="composer">
+          <input type="text" id="prompt" placeholder="Ask anything…" autocomplete="off">
+          <button class="send" id="send">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const CHAT_IDS = [1, 2, 3];
+const MODEL = "gpt-4o-mini";
+const MAX_TOKENS = 150;
+const PRICING = { in: 0.15, out: 0.60 };   // per million tokens, gpt-4o-mini
+
+const TIERS = {
+  "HIT-EXACT":    ["Tier 1", "var(--maroon)"],
+  "HIT-SEMANTIC": ["Tier 2", "var(--teal)"],
+  "MISS":         ["Miss",   "var(--faint)"]
+};
+
+// Matches the breakpoint where the two columns stack, so the behaviour that
+// depends on layout stays in step with the CSS.
+const isNarrow = () => window.matchMedia("(max-width:939px)").matches;
+
+const chats = { 1: [], 2: [], 3: [] };
+let active = 1;
+let busy = false;
+const stats = { requests: 0, hits: 0, hitMs: 0, misses: 0, missMs: 0, saved: 0 };
+
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+/* ---- rotating subjects --------------------------------------------------
+   Each run clears the caller's cached answers first, so repeatability does not
+   depend on these; they rotate so a second run reads differently rather than
+   replaying the same words. Every pool was checked against the 0.15 threshold
+   with real embeddings.                                                     */
+let cursor = 0;
+const rotate = pool => pool[cursor % pool.length];
+
+const EXACT_SUBJECTS = [
+  "a reverse proxy", "a message queue", "a service mesh",
+  "a CDN", "rate limiting", "connection pooling"
+];
+const MESSY_SUBJECTS = [
+  "a vector index", "a bloom filter", "a write-ahead log",
+  "consistent hashing", "a circuit breaker", "idempotency"
+];
+
+// Measured 0.03-0.10 apart within a pair, and no closer than 0.63 across pairs.
+// Paraphrases that keep the key nouns stay close; swapping nouns drifts past
+// the threshold.
+const REWORDS = [
+  ["How do I make a Python function asynchronous?", "How can I write an asynchronous Python function?"],
+  ["What is the capital of France?",                "Which city is the capital of France?"],
+  ["How do I reverse a string in Python?",          "What is the way to reverse a string in Python?"],
+  ["How do I undo my last git commit?",             "What is the way to undo the last commit in git?"],
+  ["How does garbage collection work in Java?",     "How is garbage collection handled in Java?"],
+  ["What does a load balancer do?",                 "What is the purpose of a load balancer?"],
+  ["How do I center a div in CSS?",                 "How can I center a div using CSS?"]
+];
+
+// Each topic measured on both constraints: the opener sits 0.22-0.36 from the
+// resolved follow-up (so the follow-up cannot match its own opening question),
+// and the chat 3 probe lands at most 0.086 from it. "under the hood" and
+// "internally" were rejected as probes: both ask for more depth than "how does
+// it work?", so they are not the same question. Prometheus and
+// Elasticsearch were dropped at 0.1316 and 0.1242 — under the threshold, but
+// with too little margin, and they failed intermittently in practice.
+const TOPICS = [
+  "Redis", "Docker", "Kafka", "GraphQL", "Kubernetes",
+  "PostgreSQL", "Terraform", "RabbitMQ", "MongoDB", "Nginx"
+];
+const topicPair = () => [
+  TOPICS[cursor % TOPICS.length],
+  TOPICS[(cursor + 1) % TOPICS.length]
+];
+
+/* ---- scenarios ---------------------------------------------------------- */
+const SCENARIOS = [
+  {
+    id: "exact",
+    title: "Exact repeat",
+    blurb: "Two chats ask the exact same question. The proxy catches the second request and serves it directly from the Tier 1 exact cache, bypassing the LLM entirely.",
+    chats: [1, 2],
+    build: () => {
+      const q = `What is ${rotate(EXACT_SUBJECTS)}?`;
+      return [
+        { chat:1, text:q, expect:"MISS",
+          note:"Nothing cached yet, so this goes upstream to OpenAI." },
+        { chat:2, text:q, expect:"HIT-EXACT",
+          note:"A different chat, but one shared cache. Tier 1 matched the prompt exactly, with no model call at all." }
+      ];
+    }
+  },
+  {
+    id: "messy",
+    title: "Messy formatting still hits",
+    blurb: "Extra spaces or ALL CAPS shouldn't cost an API call. The proxy cleans up the raw text first, ensuring it still hits the Tier 1 exact cache.",
+    chats: [1, 2],
+    build: () => {
+      const subject = rotate(MESSY_SUBJECTS);
+      return [
+        { chat:1, text:`What is ${subject}?`, expect:"MISS",
+          note:"First time this wording has been seen." },
+        { chat:2, text:`   WHAT IS ${subject.toUpperCase()}?   `, expect:"HIT-EXACT",
+          note:"Same entry. Case is lowered and runs of whitespace collapsed before the key is hashed." }
+      ];
+    }
+  },
+  {
+    id: "reworded",
+    title: "Reworded question",
+    blurb: "Different words, same meaning. A strict text match fails, but the Tier 2 vector cache compares their embeddings and realizes they mean the same thing.",
+    chats: [1, 2],
+    build: () => {
+      const [first, second] = rotate(REWORDS);
+      return [
+        { chat:1, text:first, expect:"MISS",
+          note:"First phrasing, sent upstream and stored alongside its embedding." },
+        { chat:2, text:second, expect:"HIT-SEMANTIC",
+          note:"Reworded, with nothing shared between the two but the meaning. The distance chip shows how close it landed." }
+      ];
+    }
+  },
+  {
+    id: "followup",
+    title: "Follow-ups across contexts",
+    blurb: "Two users ask 'How does it work?' but about different topics. The proxy resolves the conversational context before caching so the answers don't mix. Later, a direct question about the first topic still successfully hits that resolved cache.",
+    chats: [1, 2, 3],
+    build: () => {
+      const [A, B] = topicPair();
+      return [
+        { chat:1, text:`Who created ${A} and when?`, expect:"MISS",
+          note:`Chat 1 opens on ${A}.` },
+        { chat:1, text:"How does it work?", expect:"MISS",
+          note:`"How does it work?" means nothing on its own, so it is resolved into "How does ${A} work?" before being embedded.` },
+        { chat:2, text:`Who created ${B} and when?`, expect:"MISS",
+          note:`Chat 2 opens on ${B} instead.` },
+        { chat:2, text:"How does it work?", expect:"MISS",
+          note:`Word for word the same follow-up as chat 1, but here it resolves to ${B} — so it correctly does not match.` },
+        { chat:3, text:`Explain how ${A} works`, expect:"HIT-SEMANTIC",
+          note:`Asked outright, with no conversation behind it. It matches what chat 1's follow-up resolved to, so the answer comes from cache.` }
+      ];
+    }
+  }
+];
+
+/* ---- requests ----------------------------------------------------------- */
+// Takes the exact messages to send. It must not read chat state: `send` pushes
+// the new turn first, so rebuilding history here would duplicate it — and two
+// user messages read as a conversation, which skips Tier 1 entirely.
+async function ask(messages) {
+  const res = await fetch("/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: MAX_TOKENS })
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = body?.detail || `HTTP ${res.status}`;
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  return {
+    tier: res.headers.get("X-Cache") || "?",
+    ms: parseFloat(res.headers.get("X-Cache-Latency-Ms") || "0"),
+    distance: res.headers.get("X-Cache-Distance"),
+    content: body?.choices?.[0]?.message?.content ?? "(empty response)",
+    usage: body?.usage || null
+  };
+}
+
+function record(r) {
+  stats.requests++;
+  if (r.tier.startsWith("HIT")) {
+    stats.hits++;
+    stats.hitMs += r.ms;
+    // A hit avoids what the original call cost; cached bodies keep their usage.
+    if (r.usage) {
+      stats.saved += (r.usage.prompt_tokens || 0) / 1e6 * PRICING.in
+                   + (r.usage.completion_tokens || 0) / 1e6 * PRICING.out;
+    }
+  } else {
+    stats.misses++;
+    stats.missMs += r.ms;
+  }
+  renderMetrics();
+}
+
+/* ---- send --------------------------------------------------------------- */
+async function send(chatId, text, meta = {}) {
+  // Snapshot the conversation as it stands before this turn is added.
+  const outgoing = chats[chatId]
+    .filter(m => m.role === "user" || m.role === "assistant")
+    .map(m => ({ role: m.role, content: m.content }))
+    .concat({ role: "user", content: text });
+
+  chats[chatId].push({ role:"user", content:text });
+  chats[chatId].push({ role:"pending" });
+  if (chatId === active) renderThread();
+
+  let result;
+  try {
+    result = await ask(outgoing);
+  } catch (err) {
+    chats[chatId].pop();
+    chats[chatId].push({ role:"error", content:err.message });
+    if (chatId === active) renderThread();
+    showBanner(err.message);
+    return null;
+  }
+
+  chats[chatId].pop();
+  chats[chatId].push({
+    role: "assistant", content: result.content, tier: result.tier, ms: result.ms,
+    distance: result.distance, note: meta.note,
+    expect: meta.expect, ok: meta.expect ? result.tier === meta.expect : undefined
+  });
+
+  record(result);
+  if (chatId === active) renderThread();
+  return result;
+}
+
+/* ---- scenario runner ---------------------------------------------------- */
+async function runScenario(sc) {
+  if (busy) return;
+  busy = true;
+  setControls(true);
+
+  // Both are cleared first, or a re-run reports failures against a gateway
+  // that is working correctly. History would push every step onto Tier 2.
+  sc.chats.forEach(id => { chats[id] = []; });
+  renderTabs();
+  if (sc.chats.includes(active)) renderThread();
+
+  // Stacked layouts put the chat below the cards, so follow it there.
+  if (isNarrow()) {
+    document.querySelector(".chatwrap")
+      .scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Clears only your own pool, never anyone else's.
+  try {
+    await fetch("/v1/cache/reset", { method: "POST" });
+  } catch (e) { /* the scenario still runs, it may just report cached hits */ }
+
+  const stepsEl = document.getElementById(`steps-${sc.id}`);
+  const steps = sc.build();
+  stepsEl.classList.add("on");
+  stepsEl.innerHTML = steps.map((s, i) =>
+    `<div class="step" id="st-${sc.id}-${i}"><span class="ix">${i + 1}</span>` +
+    `<span>chat ${s.chat} · ${esc(s.text.trim().slice(0, 42))}${s.text.trim().length > 42 ? "…" : ""}</span></div>`
+  ).join("");
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const row = document.getElementById(`st-${sc.id}-${i}`);
+    row.className = "step active";
+
+    // Follow the scenario to whichever chat it is writing to, so nothing
+    // interesting happens off-screen.
+    if (active !== step.chat) { active = step.chat; renderTabs(); renderThread(); }
+
+    const r = await send(step.chat, step.text, { note: step.note, expect: step.expect });
+    row.className = "step " + (r && r.tier === step.expect ? "pass" : "fail");
+    if (r && r.tier !== step.expect) {
+      row.innerHTML += `<span> — got ${esc(r.tier)}, expected ${esc(step.expect)}</span>`;
+    }
+    if (!r) break;
+  }
+
+  cursor++;
+  busy = false;
+  setControls(false);
+}
+
+function setControls(disabled) {
+  document.querySelectorAll("button.run, button.send").forEach(b => { b.disabled = disabled; });
+}
+
+/* ---- rendering ---------------------------------------------------------- */
+function renderMetrics() {
+  const avgHit = stats.hits ? stats.hitMs / stats.hits : 0;
+  const avgMiss = stats.misses ? stats.missMs / stats.misses : 0;
+  const rate = stats.requests ? (stats.hits / stats.requests * 100) : 0;
+  const speed = (avgHit && avgMiss) ? (avgMiss / avgHit) : 0;
+
+  // Short labels on a phone: the row has to fit the width outright, since the
+  // page is not allowed to scroll sideways.
+  const narrow = isNarrow();
+  const dash = '<span class="v none">&mdash;</span>';
+  const tiles = [
+    [narrow ? "Reqs" : "Requests", `<div class="v">${stats.requests}</div>`],
+    [narrow ? "Cached" : "Served from cache",
+      stats.requests ? `<div class="v">${rate.toFixed(0)}%</div>` : dash],
+    [narrow ? "Faster" : "Speedup",
+      speed ? `<div class="v">${speed.toFixed(0)}&times;</div>` : dash],
+    [narrow ? "Saved" : "Cost avoided",
+      stats.saved ? `<div class="v">$${stats.saved.toFixed(5)}</div>` : dash],
+  ];
+
+  let html = tiles.map(([k, v]) =>
+    `<div class="stat"><div class="k">${k}</div>${v}</div>`).join("");
+
+  // The latency breakdown is the least important figure, so it is the one that
+  // gives way when there is no room for it.
+  if (!narrow) {
+    html += `<div class="stat split"><div class="mini">` +
+      `cached <b>${avgHit ? avgHit.toFixed(0) + "ms" : "—"}</b><br>` +
+      `upstream <b>${avgMiss ? avgMiss.toFixed(0) + "ms" : "—"}</b></div>` +
+      `<button class="ghost" id="resetMetrics">Reset</button></div>`;
+  } else {
+    html += `<button class="ghost mini-reset" id="resetMetrics">Reset</button>`;
+  }
+
+  document.getElementById("metrics").innerHTML = html;
+  document.getElementById("resetMetrics").onclick = async e => {
+    e.target.disabled = true;
+    // Clears the counters and your own cached answers, so the next repeat is a
+    // genuine miss rather than a hit left over from before the reset.
+    try { await fetch("/v1/cache/reset", { method: "POST" }); } catch (err) {}
+    Object.keys(stats).forEach(k => stats[k] = 0);
+    renderMetrics();
+  };
+}
+
+function renderTabs() {
+  document.getElementById("tabs").innerHTML =
+    CHAT_IDS.map(id =>
+      `<div class="tab ${id === active ? "on" : ""}" data-chat="${id}">Chat ${id}` +
+      `${chats[id].length && id !== active ? '<span class="dot"></span>' : ""}</div>`
+    ).join("") +
+    `<div class="spacer"></div>` +
+    `<button class="ghost" id="clearChat">Clear<span class="wide"> chat</span></button>`;
+
+  document.querySelectorAll(".tab").forEach(t => {
+    t.onclick = () => { active = +t.dataset.chat; renderTabs(); renderThread(); };
+  });
+  document.getElementById("clearChat").onclick = () => {
+    chats[active] = [];
+    renderTabs(); renderThread();
+    document.getElementById("prompt").focus();
+  };
+}
+
+function renderThread() {
+  const el = document.getElementById("thread");
+  if (!chats[active].length) {
+    el.innerHTML = `<div class="placeholder">
+      Chat ${active} is empty.<br>
+      Ask <b>${MODEL}</b> a question, or run one of the guided scenarios.<br><br>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = chats[active].map(m => {
+    if (m.role === "user")
+      return `<div class="msg user"><div class="bubble">${esc(m.content)}</div></div>`;
+    if (m.role === "pending")
+      return `<div class="msg ai"><div class="bubble typing"><i></i><i></i><i></i></div></div>`;
+    if (m.role === "error")
+      return `<div class="msg ai"><div class="bubble" style="border-color:#d9a7a0;color:#8c2f22">${esc(m.content)}</div></div>`;
+
+    const [label, colour] = TIERS[m.tier] || ["?", "var(--faint)"];
+    let chips = `<span class="chip tier" style="background:${colour}">${label}</span>` +
+                `<span class="chip">${m.ms.toFixed(m.ms < 10 ? 1 : 0)}ms</span>`;
+    if (m.distance) chips += `<span class="chip">distance ${esc(m.distance)}</span>`;
+    if (m.expect) chips += `<span class="chip verdict ${m.ok ? "pass" : "fail"}">` +
+                           `${m.ok ? "PASS" : "FAIL — expected " + esc(m.expect)}</span>`;
+
+    return `<div class="msg ai">
+              <div class="bubble">${esc(m.content)}</div>
+              <div class="chips">${chips}</div>
+              ${m.note ? `<div class="note">${esc(m.note)}</div>` : ""}
+            </div>`;
+  }).join("");
+
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderScenarios() {
+  document.getElementById("scenarios").innerHTML = SCENARIOS.map(sc => `
+    <div class="sc">
+      <h3>${sc.title}</h3>
+      <p>${sc.blurb}</p>
+      <button class="run" data-sc="${sc.id}">Run</button>
+      <div class="steps" id="steps-${sc.id}"></div>
+    </div>`).join("");
+
+  document.querySelectorAll("button.run").forEach(b => {
+    b.onclick = () => runScenario(SCENARIOS.find(s => s.id === b.dataset.sc));
+  });
+}
+
+function renderScenarioToggle() {
+  const open = !document.getElementById("scenarioBody").classList.contains("collapsed");
+  document.getElementById("scToggle").innerHTML =
+    `<span>${SCENARIOS.length} guided scenarios</span>` +
+    `<span class="caret">${open ? "Hide" : "Show"}</span>`;
+}
+
+function showBanner(msg) {
+  const b = document.getElementById("banner");
+  b.textContent = msg;
+  b.classList.add("on");
+  setTimeout(() => b.classList.remove("on"), 9000);
+}
+
+/* ---- intro -------------------------------------------------------------- */
+const SEEN_KEY = "gw_intro_seen";
+const openIntro = () => document.getElementById("veil").classList.add("on");
+const closeIntro = () => {
+  document.getElementById("veil").classList.remove("on");
+  try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
+  document.getElementById("prompt").focus();
+};
+
+/* ---- wiring ------------------------------------------------------------- */
+async function sendTyped() {
+  const input = document.getElementById("prompt");
+  const text = input.value.trim();
+  if (!text || busy) return;
+  input.value = "";
+  busy = true; setControls(true);
+  await send(active, text);
+  busy = false; setControls(false);
+  input.focus();
+}
+
+document.getElementById("send").onclick = sendTyped;
+document.getElementById("prompt").addEventListener("keydown", e => {
+  if (e.key === "Enter") sendTyped();
+});
+document.getElementById("scToggle").onclick = () => {
+  document.getElementById("scenarioBody").classList.toggle("collapsed");
+  renderScenarioToggle();
+};
+document.getElementById("begin").onclick = closeIntro;
+document.getElementById("helplink").onclick = openIntro;
+document.getElementById("veil").onclick = e => {
+  if (e.target.id === "veil") closeIntro();
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeIntro();
+});
+
+renderMetrics();
+renderTabs();
+renderThread();
+renderScenarios();
+
+// Start collapsed only where the cards would otherwise push the chat off-screen.
+if (isNarrow()) document.getElementById("scenarioBody").classList.add("collapsed");
+renderScenarioToggle();
+
+// ?intro=0 opens straight into the playground, skipping the dialog.
+const skipIntro = new URLSearchParams(location.search).get("intro") === "0";
+try {
+  if (!skipIntro && !localStorage.getItem(SEEN_KEY)) openIntro();
+} catch (e) {
+  if (!skipIntro) openIntro();
+}
+
+fetch("/health").then(r => r.json()).then(h => {
+  if (h.budget && h.budget.exhausted) {
+    showBanner("This demo has reached its daily API budget. Cached answers still work.");
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>

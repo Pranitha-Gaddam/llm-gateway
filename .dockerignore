@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.git/
+.github/
+*.md
+LICENSE
+Makefile
+demo.py
+load_test.py
+docker-compose.yml
