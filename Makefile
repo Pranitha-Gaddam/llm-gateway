@@ -1,6 +1,6 @@
 .PHONY: help setup up down run demo load reset
 
-VENV := .venv
+VENV ?= .venv
 PY   := $(VENV)/bin/python
 PORT ?= 8000
 

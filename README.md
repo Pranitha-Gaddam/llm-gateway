@@ -255,7 +255,7 @@ unaffected.
 | --- | --- | --- |
 | `DAILY_BUDGET_USD` | 5.00 | The one that matters. Rate limits are bypassed by cycling IPs; a hard ceiling is not. |
 | `ALLOWED_MODELS` | `gpt-4o-mini` | Without it a visitor requests a frontier model at ~20× the cost. |
-| `RATE_LIMIT_REQUESTS` | 30 / 10 min | Shapes honest traffic. |
+| `RATE_LIMIT_REQUESTS` | 50 / 10 min | Shapes honest traffic. |
 | `MAX_OUTPUT_TOKENS` | 150 | Clamped server-side regardless of what is asked for. |
 | `MAX_INPUT_CHARS` | 2000 | With `MAX_MESSAGES`, prevents context stuffing. |
 | `ENABLE_MODERATION` | true | Screens input on the miss path; the endpoint is free. |

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # only cache hits are served.
     DAILY_BUDGET_USD: float = 5.00
 
-    RATE_LIMIT_REQUESTS: int = 30
+    RATE_LIMIT_REQUESTS: int = 50
     RATE_LIMIT_WINDOW_SECONDS: int = 600
 
     MAX_OUTPUT_TOKENS: int = 150
